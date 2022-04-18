@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--    change the access level so that the employee can access their timesheet from menu item  -->
+
+    <record id="hr_timesheet.timesheet_menu_root" model="ir.ui.menu">
+        <field name="groups_id" eval="[(6,0, [])]"/>
+    </record>
+
+    <!--    change the access level so that the project manager(Team Approver) can access all timesheets from menu item    -->
+
+    <record id="hr_timesheet.timesheet_menu_activity_all" model="ir.ui.menu">
+        <field name="groups_id" eval="[(6,0, [ref('hr_timesheet.group_hr_timesheet_approver')])]"/>
+    </record>
+
+    <!--    add a server action to validate additional tasks    -->
+
+    <record id="timesheet_validate_action" model="ir.actions.server">
+        <field name="name">Validate</field>
+        <field name="model_id" ref="timesheets_extension.model_account_analytic_line"/>
+        <field name="binding_model_id" ref="account.model_account_analytic_line"/>
+        <field name="groups_id" eval="[(6,0, [ref('hr_timesheet.group_hr_timesheet_approver')])]"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = records.action_validate_state()
+        </field>
+    </record>
+
+    <!--    add a server action to refuse validation of additional tasks    -->
+
+    <record id="timesheet_refuse_validation_action" model="ir.actions.server">
+        <field name="name">Refuse</field>
+        <field name="model_id" ref="timesheets_extension.model_account_analytic_line"/>
+        <field name="binding_model_id" ref="account.model_account_analytic_line"/>
+        <field name="groups_id" eval="[(6,0, [ref('hr_timesheet.group_hr_timesheet_approver')])]"/>
+        <field name="state">code</field>
+        <field name="code">
+            action = records.action_refuse_validation_state()
+        </field>
+    </record>
+
+    <!--    add the work type field and the status field in the list view   -->
+
+    <record id="view_timesheets_tree_inherit" model="ir.ui.view">
+        <field name="name">timesheets.inherit.tree</field>
+        <field name="model">account.analytic.line</field>
+        <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='date']" position="after">
+                <field name="validation"/>
+            </xpath>
+
+            <!--            Remove editable from tree view to open from view in creating new timesheet  -->
+            <xpath expr="//tree" position="attributes">
+                <attribute name="editable"/>
+            </xpath>
+            <field name="task_id" position="after">
+                <field name="work_type"/>
+            </field>
+            <field name="work_type" position="after">
+                <field name="state"/>
+            </field>
+        </field>
+    </record>
+
+    <!--    add the work type field and the statusbar in the form view for all access groups   -->
+
+    <record id="view_timesheets_form_inherit" model="ir.ui.view">
+        <field name="name">timesheets.inherit.form</field>
+        <field name="model">account.analytic.line</field>
+        <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_form"/>
+        <field name="groups_id" eval="[(6,0, [])]"/>
+        <field name="arch" type="xml">
+            <field name="unit_amount" position="after">
+                <field name="work_type" widget="radio"
+                       attrs="{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}"/>
+            </field>
+            <xpath expr="//form/sheet" position='before'>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="to_be_validated,validated"
+                           attrs="{'invisible': [('state', 'in', ['empty'])]}"/>
+                </header>
+            </xpath>
+            <!--    a collaborator cannot edit a task to modify any fields   -->
+            <xpath expr="//field[@name='unit_amount']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='unit_amount']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='amount']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='task_id']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='project_id']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+            <xpath expr="//field[@name='date']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_timesheets_form_inherit_user" model="ir.ui.view">
+        <field name="name">timesheets.inherit.form.user</field>
+        <field name="model">account.analytic.line</field>
+        <field name="inherit_id" ref="hr_timesheet.timesheet_view_form_user"/>
+        <field name="groups_id" eval="[(6,0, [])]"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='employee_id']" position="attributes">
+                <attribute name="attrs">{'readonly': [('state', 'not in', ('empty', 'to_be_validated'))]}</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!--    add a validate button and a cancel button for additional tasks only and access only by the project manager   -->
+
+    <record id="view_timesheets_form_inherit_approver" model="ir.ui.view">
+        <field name="name">timesheets.inherit.form.approver</field>
+        <field name="model">account.analytic.line</field>
+        <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_form"/>
+        <field name="groups_id" eval="[(6,0, [ref('hr_timesheet.group_hr_timesheet_approver')])]"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/header" position='inside'>
+                <button id="button_validate" name="action_validate_state" string="Validate" class="btn-primary"
+                        states='to_be_validated'
+                        confirm="Are you sure to validate this task ? An email will be sent to inform the collaborator"
+                        type="object"/>
+                <button id="button_refuse" name="action_refuse_validation_state" string="Refuse"
+                        states='to_be_validated'
+                        confirm="Are you sure to refuse this task ? An email will be sent to inform the collaborator"
+                        type="object"/>
+                <button id="button_cancel" name="action_cancel_validation_state" string="Cancel" states='validated'
+                        confirm="Are you sure to cancel the validation of this task ? An email will be sent to inform the collaborator"
+                        type="object"/>
+                <button id="button_reset" name="action_reset_validation_state" string="Reset to Draft"
+                        confirm="Are you sure to reset this task to draft ? An email will be sent to inform the collaborator"
+                        states='refused' type="object"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!--    add a filter to display only additional tasks   -->
+
+    <record id="timesheets_search_inherit" model="ir.ui.view">
+        <field name="name">timesheets.inherit.search</field>
+        <field name="model">account.analytic.line</field>
+        <field name="inherit_id" ref="hr_timesheet.hr_timesheet_line_search"/>
+        <field name="arch" type="xml">
+            <filter name="month" position="after">
+                <separator/>
+                <filter name="additional_task" string="Additional Tasks"
+                        domain="['|', ('work_type', '=', 'requested_project_manager'),
+                        ('work_type', '=', 'personal_effort')]"/>
+            </filter>
+        </field>
+    </record>
+
+    <!--    add a filter in Time Off to display only the allocations of validating additional tasks   -->
+
+    <record id="hr_leave_allocation_search_inherit" model="ir.ui.view">
+        <field name="name">hr_leave_allocation.inherit.search</field>
+        <field name="model">hr.leave.allocation</field>
+        <field name="inherit_id" ref="hr_holidays.view_hr_leave_allocation_filter"/>
+        <field name="arch" type="xml">
+            <filter name="my_leaves" position="after">
+                <separator/>
+                <filter name="additional_allocations" string="Allocations of Additional Tasks"
+                        domain="[('name', '=ilike', 'Extra Work for requested task%')]"/>
+            </filter>
+        </field>
+    </record>
+
+</odoo>
